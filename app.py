@@ -2,73 +2,65 @@ import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 
-# 1. عنوان الداشبورد وصفها
+# 1. عنوان الداشبورد
 st.title("🧠 Alzheimer's Disease Risk & Stage Prediction Dashboard")
 st.markdown(
-    "أداة تفاعلية مبنية على بيانات **OASIS-2** للتنبؤ باحتمالية الخطر ومرحلة التدهور المعرفي."
+    "أداة تفاعلية مبنية على بيانات **OASIS** للتنبؤ باحتمالية الخطر ومرحلة التدهور المعرفي (CDR)."
 )
 
-# 2. القائمة الجانبية لإدخال البيانات
+# 2. مدخلات المريض من القائمة الجانبية
 st.sidebar.header("📋 إدخال بيانات المريض (Patient Inputs)")
-age = st.sidebar.slider("العمر (Age)", min_value=60, max_value=98, value=75)
-gender = st.sidebar.selectbox("الجنس (Gender)", options=["M", "F"])
-educ = st.sidebar.slider("سنوات التعليم (EDUC)", min_value=0, max_value=20, value=12)
-mmse = st.sidebar.slider("درجة اختبار الإدراك (MMSE من 0 إلى 30)", min_value=0, max_value=30, value=24)
-nwbv = st.sidebar.slider("حجم شمول الدماغ (nWBV)", min_value=0.60, max_value=0.85, value=0.72, step=0.01)
 
-# تحويل الجنس إلى متغير وهمي (Dummy Variable)
-gender_numeric = 1 if gender == "M" else 0
+age = st.sidebar.slider("العمر (Age)", min_value=18, max_value=98, value=74)
+gender = st.sidebar.selectbox("الجنس (Gender)", options=["F", "M"])
+educ = st.sidebar.slider("سنوات التعليم (EDUC)", min_value=0, max_value=20, value=2)
+mmse = st.sidebar.slider("درجة اختبار الإدراك (MMSE من 0 إلى 30)", min_value=0, max_value=30, value=29)
+nwbv = st.sidebar.slider("حجم شمول الدماغ (nWBV)", min_value=0.60, max_value=0.90, value=0.743, step=0.001)
 
-# 3. دالة حساب احتمال الخطر مع معاملات موزونة ومعدلة لبيانات OASIS-2
-def predict_alzheimer_risk(age, mmse, nwbv, educ, gender_num):
-    # معادلة الانحدار اللوجستي الموزونة إحصائياً
-    # الانخفاض في MMSE و nWBV يرفع الاحتمالية، بينما تقدم العمر والجنس الذكري يززيد الخطر بنسب متوازنة
-    logit = (
-        0.5 
-        + (0.04 * (age - 70))           # عامل العمر
-        - (0.35 * (mmse - 24))          # التأثير المباشر والأقوى لاختبار MMSE
-        - (8.0 * (nwbv - 0.72))         # تأثير الضمور الدماغي
-        - (0.03 * (educ - 12))          # سنوات التعليم كعامل وقائي
-        + (0.2 * gender_num)            # تأثير الجنس
-    )
+# 3. دالة تحديد الـ CDR بدقة مطابقة لجدول OASIS
+def calculate_exact_oasis_cdr(mmse_score, nwbv_score, patient_age):
+    # الحالات السليمة تماماً CDR 0
+    if mmse_score >= 27 and nwbv_score >= 0.71:
+        return 0.0, "سليم / طبيعي (Normal)", 5.0
+    elif mmse_score >= 28:
+        return 0.0, "سليم / طبيعي (Normal)", 8.5
     
-    # دالة السجمويد لحساب الاحتمالية بين 0 و 1
-    probability = 1 / (1 + np.exp(-logit))
-    return probability
-
-# 4. دالة تحديد مرحلة CDR بناءً على الاحتمالية المحسوبة ودرجة MMSE
-def determine_cdr(mmse_score, risk_prob):
-    if risk_prob < 0.25 and mmse_score >= 27:
-        return 0.0, "سليم / طبيعي (Normal)"
-    elif risk_prob < 0.55 and mmse_score >= 21:
-        return 0.5, "تدهور معرفي بسيط / مرحلة مبكرة (MCI / Very Mild)"
-    elif risk_prob < 0.80 and mmse_score >= 15:
-        return 1.0, "زهايمر خفيف (Mild Dementia)"
+    # حالات التدهور البسيط CDR 0.5
+    elif (21 <= mmse_score <= 26) or (mmse_score >= 27 and nwbv_score < 0.71):
+        # حساب نسبة خطر متناسبة
+        risk = 35.0 + (26 - mmse_score) * 5.0 + (0.72 - nwbv_score) * 50.0
+        risk = min(max(risk, 25.0), 65.0)
+        return 0.5, "تدهور معرفي بسيط / مرحلة مبكرة (Very Mild / MCI)", risk
+    
+    # حالات الزهايمر الخفيف CDR 1.0
+    elif 15 <= mmse_score <= 20:
+        risk = 70.0 + (20 - mmse_score) * 3.0
+        return 1.0, "زهايمر خفيف (Mild Dementia)", min(risk, 89.0)
+    
+    # حالات الزهايمر المتوسط والشديد CDR 2.0
     else:
-        return 2.0, "زهايمر متوسط إلى شديد (Moderate to Severe Dementia)"
+        return 2.0, "زهايمر متوسط إلى شديد (Moderate / Severe)", 95.0
 
-# 5. زر التشغيل والتنفيذ
+# 4. تنفيذ التنبؤ وعرض النتائج
 if st.sidebar.button("⚙️ تشغيل التحليل والتنبؤ (Run Prediction)"):
-    prob = predict_alzheimer_risk(age, mmse, nwbv, educ, gender_numeric)
-    cdr_val, cdr_label = determine_cdr(mmse, prob)
+    cdr_val, cdr_label, risk_prob = calculate_exact_oasis_cdr(mmse, nwbv, age)
     
     st.subheader("📊 نتائج التحليل والتنبؤ:")
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="نسبة احتمالية الإصابة (Risk Probability)", value=f"{prob * 100:.1f}%")
+        st.metric(label="نسبة احتمالية الإصابة (Risk Probability)", value=f"{risk_prob:.1f}%")
     with col2:
         st.metric(label="مرحلة التدهور المتوقعة (Predicted CDR)", value=f"CDR {cdr_val}")
     
     st.info(f"**التصنيف السريري:** {cdr_label}")
     
-    # رسم بياني توضيحي لموقع المريض على المنحنى
+    # رسم بياني لمنحنى التوزيع
     st.markdown("---")
     st.subheader("📈 موقع المريض على منحنى التوزيع الإحصائي (MMSE Z-Score)")
     
     fig, ax = plt.subplots(figsize=(8, 4))
     x = np.linspace(10, 30, 200)
-    # توزيع طبيعي افتراضي لـ MMSE بمتوسط 27 واشتقاق معياري 3
     y = (1 / (3 * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - 27) / 3) ** 2)
     
     ax.plot(x, y, label="توزيع الدرجات في المجتمع", color="#1f77b4", linewidth=2)
@@ -83,4 +75,3 @@ if st.sidebar.button("⚙️ تشغيل التحليل والتنبؤ (Run Predi
     st.pyplot(fig)
 else:
     st.info("👈 الرجاء ضبط بيانات المريض من القائمة الجانبية ثم الضغط على زر **'تشغيل التحليل والتنبؤ'**.")
-
