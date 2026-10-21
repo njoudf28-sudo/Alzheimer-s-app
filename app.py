@@ -27,7 +27,7 @@ def predict_alzheimer_risk(age, mmse, nwbv, educ):
       -10
       + (0.15 * age)
       - (0.6 * mmse)
-     A - (5.0 * nwbv)
+      - (5.0 * nwbv)
       - (0.05 * educ)
   )
   probability = 1 / (1 + np.exp(-logit))
