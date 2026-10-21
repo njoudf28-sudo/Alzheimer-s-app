@@ -10,10 +10,9 @@ st.markdown(
 
 # 2. القائمة الجانبية لإدخال البيانات
 st.sidebar.header("📋 إدخال بيانات المريض (Patient Inputs)")
-
 age = st.sidebar.slider("العمر (Age)", min_value=60, max_value=98, value=75)
 gender = st.sidebar.selectbox("الجنس (Gender)", options=["M", "F"])
-educ = st.sidebar.slider("سنوات التعليم (EDUC)", min_value=6, max_value=20, value=12)
+educ = st.sidebar.slider("سنوات التعليم (EDUC)", min_value=0, max_value=20, value=12)
 mmse = st.sidebar.slider("درجة اختبار الإدراك (MMSE من 0 إلى 30)", min_value=0, max_value=30, value=24)
 nwbv = st.sidebar.slider("حجم شمول الدماغ (nWBV)", min_value=0.60, max_value=0.85, value=0.72, step=0.01)
 
