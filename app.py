@@ -34,7 +34,7 @@ nwbv = st.sidebar.slider("حجم شمول الدماغ (nWBV)", min_value=0.60, 
 # خوارزمية التنبؤ الدقيقة والمطابقة للواقع السريري
 def calculate_clinical_prediction(mmse_score, nwbv_score, patient_age):
     # الحالات السليمة تماماً
-    if mmse_score >= 28 and nwbv_score >= 0.73:
+    if mmse_score >= 28 and nwbv>= 0.73:
         return 0.0, "حالة سليمة / طبيعية (Normal)", 4.5
     
     # حالات التدهور المعرفي البسيط (MCI)
